@@ -3,6 +3,7 @@
 import pyaudio
 import numpy as np
 from scipy.io.wavfile import write 
+import util
  
 FORMAT = pyaudio.paFloat32
 CHANNELS = 1
@@ -22,6 +23,7 @@ print ("recording...")
 frames = np.array([])
 for i in range(0, int(RATE / CHUNK * RECORD_SECONDS)):
     data = np.frombuffer(stream.read(CHUNK), dtype=np.float32)
+    
     frames = np.append(frames, data)
 
 print ("finished recording")
