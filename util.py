@@ -1,6 +1,7 @@
 from scipy.io.wavfile import read as wavread
 import numpy as np
 import scipy.fftpack
+import csv
 
 # using functions from previous assignments
 def ToolReadAudio(cAudioFilePath):
@@ -36,3 +37,25 @@ def block_audio(x, blockSize, hopSize, fs):
         i_stop = np.min([x.size - 1, i_start + blockSize - 1])
         xb[n][np.arange(0, blockSize)] = x[np.arange(i_start, i_stop + 1)]
     return xb, t
+
+
+def get_positions(filename):
+    file = open(filename)
+    csvreader = csv.reader(file)
+    # header = next(csvreader)
+    # print (header)
+    # note_nums = np.array([])
+    positions = []
+    # timestamps = np.array([])
+    # durations = np.array([])
+
+    for i, row in enumerate(csvreader):
+        if i >=1:
+            # print (len(row))
+            # note_nums = np.append(note_nums, row[0])
+            positions.append(int(float(row[1])))
+            # timestamps = np.array(timestamps, row[2])
+            # durations = np.array(durations, row[3])
+        else:
+            pass
+    return positions
