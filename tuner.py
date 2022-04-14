@@ -112,8 +112,8 @@ index = 0
 filename = 'notes.csv'
 dxl_goal_position = util.get_positions(filename)[1:]
 print (dxl_goal_position)
-dxl_goal_position = [DXL_MINIMUM_POSITION_VALUE, DXL_MAXIMUM_POSITION_VALUE]         # Goal position
-print (dxl_goal_position)
+# dxl_goal_position = [DXL_MINIMUM_POSITION_VALUE, DXL_MAXIMUM_POSITION_VALUE]         # Goal position
+# print (dxl_goal_position)
 
 
 
