@@ -11,7 +11,7 @@ AccelStepper plateStepper(motorInterfaceType, stepPin, dirPin);
 
 void setup() {
   Serial.begin(9600);
-  plateStepper.setMaxSpeed(2000);
+  plateStepper.setMaxSpeed(5000);
   plateStepper.setAcceleration(30);
 
 }
@@ -19,7 +19,7 @@ void setup() {
 void loop () {
 
 
-  plateStepper.setSpeed(2000); // use negative for clockwise, and positive for anticlockwise
+  plateStepper.setSpeed(2500); // use negative for clockwise, and positive for anticlockwise
   plateStepper.runSpeed();
 
 }
