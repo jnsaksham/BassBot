@@ -13,7 +13,6 @@ from scipy.io.wavfile import write
 import util
 
 # Current problems
-## Add silence detection
 ## Audio concatenation
 ## Min and max f0
 
