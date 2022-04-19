@@ -19,7 +19,7 @@ void setup() {
 void loop () {
 
 
-  plateStepper.setSpeed(2500); // use negative for clockwise, and positive for anticlockwise
+  plateStepper.setSpeed(500); // use negative for clockwise, and positive for anticlockwise
   plateStepper.runSpeed();
 
 }
