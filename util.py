@@ -42,13 +42,14 @@ def ToolReadAudio(cAudioFilePath):
 #     return xb, t
 
 
-def get_positions(filename):
+def get_positions(filename, current_position):
     file = open(filename)
     csvreader = csv.reader(file)
     # header = next(csvreader)
     # print (header)
     # note_nums = np.array([])
     positions = []
+    abs_pos = []
     # timestamps = np.array([])
     # durations = np.array([])
 
@@ -56,12 +57,13 @@ def get_positions(filename):
         if i >=1:
             # print (len(row))
             # note_nums = np.append(note_nums, row[0])
-            positions.append(int(float(row[1])))
+            positions.append(int(float(row[1])+current_position))
+            abs_pos.append(int(float(row[1])))
             # timestamps = np.array(timestamps, row[2])
             # durations = np.array(durations, row[3])
         else:
             pass
-    return positions
+    return positions, abs_pos
 
 
 def block_audio(x, blockSize, hopSize, fs):
@@ -137,3 +139,11 @@ def wrapped_f0(f0, fmin, fmax):
             f0_wrapped = np.append(f0_wrapped, f0_scaled(f, fmin, fmax))
             
     return f0_wrapped
+
+def twos_complement(pos):
+    loc = pos + 4294967296
+    return loc
+
+def negative_goal_val(pos):
+    loc = pos - 4294967296 
+    return loc

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-#*******************************************************************************
+################################################################################
 # Copyright 2017 ROBOTIS CO., LTD.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,28 +15,25 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#*******************************************************************************
+################################################################################
 
-
 #*******************************************************************************
-#***********************     Read and Write Example      ***********************
+#***********************     Clear Multi Turn Example [Extended Position Control Mode]   ***********************
 #  Required Environment to run this example :
 #    - Protocol 2.0 supported DYNAMIXEL(X, P, PRO/PRO(A), MX 2.0 series)
 #    - DYNAMIXEL Starter Set (U2D2, U2D2 PHB, 12V SMPS)
 #  How to use the example :
 #    - Select the DYNAMIXEL in use at the MY_DXL in the example code. 
+#    - Note that the XL320 does support Extended Position Control Mode
 #    - Build and Run from proper architecture subdirectory.
 #    - For ARM based SBCs such as Raspberry Pi, use linux_sbc subdirectory to build and run.
 #    - https://emanual.robotis.com/docs/en/software/dynamixel/dynamixel_sdk/overview/
-#  Author: Ryu Woon Jung (Leon)
+#  Author: Ki Jong Gil (Gilbert)
 #  Maintainer : Zerom, Will Son
-# *******************************************************************************
+# ****
 
 from __future__ import print_function
 import os
-from util import get_positions
-from pymata4 import pymata4
-import time
 import util
 
 if os.name == 'nt':
@@ -74,17 +71,15 @@ else:
 
         return 0
 
-from dynamixel_sdk import * # Uses Dynamixel SDK library
+from dynamixel_sdk import *                    # Uses Dynamixel SDK library
 
 #********* DYNAMIXEL Model definition *********
 #***** (Use only one definition at a time) *****
-MY_DXL = 'X_SERIES'       # X330 (5.0 V recommended), X430, X540, 2X4om scipy.io.wavfile import read as wavread
+MY_DXL = 'X_SERIES'       # X330 (5.0 V recommended), X430, X540, 2X430 (Note that XL320 does not support Extended Position Control Mode)
 # MY_DXL = 'MX_SERIES'    # MX series with 2.0 firmware update.
 # MY_DXL = 'PRO_SERIES'   # H54, H42, M54, M42, L54, L42
 # MY_DXL = 'PRO_A_SERIES' # PRO series with (A) firmware update.
 # MY_DXL = 'P_SERIES'     # PH54, PH42, PM54
-# MY_DXL = 'XL320'        # [WARNING] Operating Voltage : 7.4V
-
 
 # Control table address
 if MY_DXL == 'X_SERIES' or MY_DXL == 'MX_SERIES':
@@ -102,9 +97,8 @@ elif MY_DXL == 'P_SERIES' or MY_DXL == 'PRO_A_SERIES':
 
 ADDR_OPERATING_MODE         = 11
 
-# DYNAMIXEL Protocol Version (1.0 / 2.0)
-# https://emanual.robotis.com/docs/en/dxl/protocol2/
-PROTOCOL_VERSION            = 2.0
+# Protocol version
+PROTOCOL_VERSION            = 2.0            # See which protocol version is used in the Dynamixel
 
 # Factory default ID of all DYNAMIXEL is 1
 DXL_ID                      = 1
@@ -115,28 +109,14 @@ DEVICENAME                  = '/dev/ttyUSB0'
 
 BAUDRATE                    = 57600
 EXT_POSITION_CONTROL_MODE   = 4                 # The value of Extended Position Control Mode that can be set through the Operating Mode (11)
-TORQUE_ENABLE               = 1     # Value for enabling the torque
-TORQUE_DISABLE              = 0     # Value for disabling the torque
-DXL_MOVING_STATUS_THRESHOLD = 100    # Dynamixel moving status threshold
-# MAX_POSITION_VALUE          = 5000          # Of MX with firmware 2.0 and X-Series the revolution on Extended Position Control Mode is 256 rev
+TORQUE_ENABLE               = 1                 # Value for enabling the torque
+TORQUE_DISABLE              = 0                 # Value for disabling the torque
+
+MIN_POSITION_VALUE          = -1048575           # Of MX with firmware 2.0 and X-Series the revolution on Extended Position Control Mode is 256 rev
+DXL_MOVING_STATUS_THRESHOLD = 100                # Dynamixel will rotate between this value
 
 ESC_ASCII_VALUE             = 0x1b
 SPACE_ASCII_VALUE           = 0x20
-
-# Initialize Stepper motor driver
-#######################################################################################
-board = pymata4.Pymata4()
-num_steps = 3200
-vel = 200
-pins = [2,3]
-####################################################################################### 
-board.set_pin_mode_stepper(num_steps, pins)
-#index = 0
-
-# dxl_goal_positions = [DXL_MINIMUM_POSITION_VALUE, DXL_MAXIMUM_POSITION_VALUE]         # Goal position
-# print (dxl_goal_positions)
-####################################################################################### 
-# board.set_pin_mode_stepper(num_steps, pins)
 
 # Initialize PortHandler instance
 # Set the port path
@@ -147,11 +127,6 @@ portHandler = PortHandler(DEVICENAME)
 # Set the protocol version
 # Get methods and members of Protocol1PacketHandler or Protocol2PacketHandler
 packetHandler = PacketHandler(PROTOCOL_VERSION)
-
-GOAL_CURRENT = 102
-PRESENT_CURRENT = 126
-ADDR_CURRENT_LIMIT = 38
-CURRENT_LIMIT = 2352
 
 # Open port
 if portHandler.openPort():
@@ -182,14 +157,11 @@ else:
     print("Operating mode changed to extended position control mode.")
 
 dxl_present_position, dxl_comm_result, dxl_error = packetHandler.read4ByteTxRx(portHandler, DXL_ID, ADDR_PRESENT_POSITION)
-filename = 'notes.csv'
-dxl_goal_positions, rel_positions = get_positions(filename, dxl_present_position)
-dxl_goal_positions = dxl_goal_positions[1:]
-rel_positions = rel_positions[1:]
-print (dxl_goal_positions)
-print (rel_positions)
 
 # Set current limit
+ADDR_CURRENT_LIMIT = 38
+CURRENT_LIMIT = 2352
+
 dxl_comm_result, dxl_error = packetHandler.write2ByteTxRx(portHandler, DXL_ID, ADDR_CURRENT_LIMIT, CURRENT_LIMIT)
 if dxl_comm_result != COMM_SUCCESS:
     print("%s" % packetHandler.getTxRxResult(dxl_comm_result))
@@ -208,39 +180,31 @@ try:
     else:
         print("Dynamixel has been successfully connected")
 
-    direction = 1
-
-    for index in range(len(dxl_goal_positions)):
+    while 1:
+        MAX_POSITION_VALUE = int(input("Enter goal position\n"))          # Of MX with firmware 2.0 and X-Series the revolution on Extended Position Control Mode is 256 rev
+        print("\nPress any key to continue! (or press ESC to quit!)")
+        if getch() == chr(ESC_ASCII_VALUE):
+            break
+        print("  Press SPACE key to clear multi-turn information! (or press ESC to stop!)")
 
         # Write goal position
-        ####################################################################################### 
-        num_steps = direction*num_steps
-        board.set_pin_mode_stepper(num_steps, pins)
-        board.stepper_write(vel, num_steps)
-            # Write goal position
-        goal_position = dxl_goal_positions[index]
-        if goal_position < 0:
-            goal_position = util.twos_complement(goal_position)
-        dxl_comm_result, dxl_error = packetHandler.write4ByteTxRx(portHandler, DXL_ID, ADDR_GOAL_POSITION, goal_position)
+        if MAX_POSITION_VALUE < 0:
+            MAX_POSITION_VALUE = util.twos_complement(MAX_POSITION_VALUE)
+        dxl_comm_result, dxl_error = packetHandler.write4ByteTxRx(portHandler, DXL_ID, ADDR_GOAL_POSITION, MAX_POSITION_VALUE)
         if dxl_comm_result != COMM_SUCCESS:
             print("%s" % packetHandler.getTxRxResult(dxl_comm_result))
         elif dxl_error != 0:
             print("%s" % packetHandler.getRxPacketError(dxl_error))
 
-        dxl_goal_current, dxl_comm_result, dxl_error = packetHandler.read2ByteTxRx(portHandler, DXL_ID, GOAL_CURRENT)
-        print ('Goal current: ', dxl_goal_current)
         while 1:
             # Read present position
-            dxl_present_current, dxl_comm_result, dxl_error = packetHandler.read2ByteTxRx(portHandler, DXL_ID, PRESENT_CURRENT)
             dxl_present_position, dxl_comm_result, dxl_error = packetHandler.read4ByteTxRx(portHandler, DXL_ID, ADDR_PRESENT_POSITION)
-            
             if dxl_comm_result != COMM_SUCCESS:
                 print("%s" % packetHandler.getTxRxResult(dxl_comm_result))
             elif dxl_error != 0:
                 print("%s" % packetHandler.getRxPacketError(dxl_error))
 
-            print("   [ID:%03d] GoalPos:%03d  PresPos:%03d  PresCur:%03d" %(DXL_ID, goal_position, dxl_present_position, dxl_present_current), end = "\r")
-    #         print ("Excel delta position: ", rel_positions[index])
+            print("   [ID:%03d] GoalPos:%03d  PresPos:%03d" %(DXL_ID, MAX_POSITION_VALUE, dxl_present_position), end = "\r")
             if kbhit():
                 c = getch()
                 if c == chr(SPACE_ASCII_VALUE):
@@ -282,27 +246,17 @@ try:
                         print("%s" % packetHandler.getRxPacketError(dxl_error))
                     break
 
-            if not abs(goal_position - dxl_present_position) > DXL_MOVING_STATUS_THRESHOLD:
+            if not abs(MAX_POSITION_VALUE - dxl_present_position) > DXL_MOVING_STATUS_THRESHOLD:
                 break
 
-        # Change goal position
-        if index == len(dxl_goal_positions)-1:
-            # Disable stepper motor
-            ####################################################################################### 
-            board.shutdown()
-            # Disable Dynamixel Torque
-            dxl_comm_result, dxl_error = packetHandler.write1ByteTxRx(portHandler, DXL_ID, ADDR_TORQUE_ENABLE, TORQUE_DISABLE)
-            if dxl_comm_result != COMM_SUCCESS:
-                print("%s" % packetHandler.getTxRxResult(dxl_comm_result))
-            elif dxl_error != 0:
-                print("%s" % packetHandler.getRxPacketError(dxl_error))
-
-            # Close port
-            portHandler.closePort()
-        else:
-            index += 1
-            #direction = -1*direction
-        time.sleep(1)
+    # Disable Dynamixel Torque
+    dxl_comm_result, dxl_error = packetHandler.write1ByteTxRx(portHandler, DXL_ID, ADDR_TORQUE_ENABLE, TORQUE_DISABLE)
+    if dxl_comm_result != COMM_SUCCESS:
+        print("%s" % packetHandler.getTxRxResult(dxl_comm_result))
+    elif dxl_error != 0:
+        print("%s" % packetHandler.getRxPacketError(dxl_error))
+    # Close port
+    portHandler.closePort()
 
 except KeyboardInterrupt:
     print ('KeyboardInterrupt exception is caught')
@@ -314,5 +268,4 @@ except KeyboardInterrupt:
         print("%s" % packetHandler.getRxPacketError(dxl_error))
     # Close port
     portHandler.closePort()
-
-
+    
