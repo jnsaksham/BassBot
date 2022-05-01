@@ -1,19 +1,28 @@
 input numpy as np
+import csv
+import time
+import util
 
-# Delay is added by the rotation of servo motor. 
-# Calculate this delay and adjust in the final code.
 # Define everything using an input metronome value with type (whole, half, quarter, eighth, sixteenth) as note type
 
-#### Note definition (position, duration, style)
-# Every note should have an onset time and a rest (post offset) time for the servo to adjust-
-## Servo should reach the position before the onset time
-## Exactly at the onset time, stepper should pluck
-## Damper should damp at the offset time
+tempo = 60.6
+ibi = 60/tempo
 
-arduino_pos_per_rev = 6400
+# Arduino operation times
+durComm = 0.05 # Arduino, py communication lag
+durRotate = 0.1 # Motor rotation time before it plucks
 
-def note(position, dur, style):
-# Convert position to pitch eventually
-	pass
+# Note information
+positions = np.array([0, 1000, 2000, 0, 3000, 0, 2000, 0])
+num_notes = len(positions)
+songDur = len(positions)*ibi
+# styles = np.array(['n', 'n', 's', 's', 'n', 's', 's', 'n'])
+styles = np.array(['n', 'n', 'n', 'n', 'n', 'n', 'n', 'n'])
+# styles = np.full(num_notes, 'n')
+dampNote = np.array([0, 0, 0, 0, 0, 0, 0, 0])
 
+noteDurations = np.full(num_notes, 0.2)
 
+stepper_state = 0 # Initial stepper state = stepper off
+
+util.exec(tempo, songDur, positions, noteDurations, styles, dampNote, durComm, durRotate)
