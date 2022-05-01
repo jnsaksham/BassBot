@@ -36,6 +36,9 @@ from __future__ import print_function
 import os
 from util import get_positions
 from pymata4 import pymata4
+import numpy as np
+import serial
+import struct
 import time
 import util
 
@@ -111,7 +114,7 @@ DXL_ID                      = 1
 
 # Use the actual port assigned to the U2D2.
 # ex) Windows: "COM*", Linux: "/dev/ttyUSB*", Mac: "/dev/tty.usbserial-*"
-DEVICENAME                  = '/dev/ttyUSB0'
+DEVICENAME                  = '/dev/ttyUSB1'
 
 BAUDRATE                    = 57600
 EXT_POSITION_CONTROL_MODE   = 4                 # The value of Extended Position Control Mode that can be set through the Operating Mode (11)
@@ -123,14 +126,18 @@ DXL_MOVING_STATUS_THRESHOLD = 100    # Dynamixel moving status threshold
 ESC_ASCII_VALUE             = 0x1b
 SPACE_ASCII_VALUE           = 0x20
 
+start_time = time.time();
 # Initialize Stepper motor driver
 #######################################################################################
-board = pymata4.Pymata4()
-num_steps = 3200
-vel = 200
-pins = [2,3]
+port = '/dev/ttyACM0'
+ser = serial.Serial(port, 9600, timeout = 0.2)
+time.sleep(1.5) #sleep after opening port
+#board = pymata4.Pymata4()
+#num_steps = 3200
+#vel = 200
+#pins = [2,3]
 ####################################################################################### 
-board.set_pin_mode_stepper(num_steps, pins)
+#board.set_pin_mode_stepper(num_steps, pins)
 #index = 0
 
 # dxl_goal_positions = [DXL_MINIMUM_POSITION_VALUE, DXL_MAXIMUM_POSITION_VALUE]         # Goal position
@@ -183,11 +190,15 @@ else:
 
 dxl_present_position, dxl_comm_result, dxl_error = packetHandler.read4ByteTxRx(portHandler, DXL_ID, ADDR_PRESENT_POSITION)
 filename = 'notes.csv'
-dxl_goal_positions, rel_positions = get_positions(filename, dxl_present_position)
+dxl_goal_positions, rel_positions, step_positions, durations = get_positions(filename, dxl_present_position)
 dxl_goal_positions = dxl_goal_positions[1:]
 rel_positions = rel_positions[1:]
+step_positions = step_positions[1:]
+durations = durations[1:]
 print (dxl_goal_positions)
 print (rel_positions)
+print (step_positions)
+print (durations)
 
 # Set current limit
 dxl_comm_result, dxl_error = packetHandler.write2ByteTxRx(portHandler, DXL_ID, ADDR_CURRENT_LIMIT, CURRENT_LIMIT)
@@ -210,18 +221,33 @@ try:
 
     direction = 1
 
+    previous_time = time.time()
     for index in range(len(dxl_goal_positions)):
 
+        
+        #print("Beginning Time:" + str(time.time()-start_time) + '\n')
+        #loops every 0.064 seconds
         # Write goal position
-        ####################################################################################### 
-        num_steps = direction*num_steps
-        board.set_pin_mode_stepper(num_steps, pins)
-        board.stepper_write(vel, num_steps)
+        #######################################################################################
+        #print (str(step_positions[index]) + '!') #add ! on end for arduino to know end of characters\
+        
+        #sleep 0.1 seconds every time between readings, then sleep duration of note
+        print("Time diff:" + str(time.time()-previous_time) + '\n')
+        #time.sleep(0.1 - (time.time() - previous_time))
+        time.sleep((durations[index]/1000)-(0.1- (time.time() - previous_time)))
+        previous_time = time.time();
+        
+        ser.write(bytes(str(step_positions[index]) + '!', "utf-8"))
+        #print("Stepper message time:" + str(time.time()-start_time) + '\n')
+        #num_steps = direction*num_steps
+        #board.set_pin_mode_stepper(num_steps, pins)
+        #board.stepper_write(vel, num_steps)
             # Write goal position
         goal_position = dxl_goal_positions[index]
         if goal_position < 0:
             goal_position = util.twos_complement(goal_position)
         dxl_comm_result, dxl_error = packetHandler.write4ByteTxRx(portHandler, DXL_ID, ADDR_GOAL_POSITION, goal_position)
+        #print("Beginning Servo Move Time:" + str(time.time()-start_time) + '\n')
         if dxl_comm_result != COMM_SUCCESS:
             print("%s" % packetHandler.getTxRxResult(dxl_comm_result))
         elif dxl_error != 0:
@@ -241,46 +267,46 @@ try:
 
             print("   [ID:%03d] GoalPos:%03d  PresPos:%03d  PresCur:%03d" %(DXL_ID, goal_position, dxl_present_position, dxl_present_current), end = "\r")
     #         print ("Excel delta position: ", rel_positions[index])
-            if kbhit():
-                c = getch()
-                if c == chr(SPACE_ASCII_VALUE):
-                    print("\n  Stop & Clear Multi-Turn Information! ")
-                    # Write the present position to the goal position to stop moving
-                    dxl_comm_result, dxl_error = packetHandler.write4ByteTxRx(portHandler, DXL_ID, ADDR_GOAL_POSITION, dxl_present_position)
-                    if dxl_comm_result != COMM_SUCCESS:
-                        print("%s" % packetHandler.getTxRxResult(dxl_comm_result))
-                    elif dxl_error != 0:
-                        print("%s" % packetHandler.getRxPacketError(dxl_error))
-
-                    time.sleep(0.3)
-
-                    # Clear Multi-Turn Information
-                    dxl_comm_result, dxl_error = packetHandler.clearMultiTurn(portHandler, DXL_ID)
-                    if dxl_comm_result != COMM_SUCCESS:
-                        print("%s" % packetHandler.getTxRxResult(dxl_comm_result))
-                    elif dxl_error != 0:
-                        print("%s" % packetHandler.getRxPacketError(dxl_error))
-
-                    # Read present position
-                    dxl_present_position, dxl_comm_result, dxl_error = packetHandler.read4ByteTxRx(portHandler, DXL_ID, ADDR_PRESENT_POSITION)
-                    if dxl_comm_result != COMM_SUCCESS:
-                        print("%s" % packetHandler.getTxRxResult(dxl_comm_result))
-                    elif dxl_error != 0:
-                        print("%s" % packetHandler.getRxPacketError(dxl_error))
-
-                    print("  Present Position has been reset. : %03d" % dxl_present_position)
-
-                    break
-
-                elif c == chr(ESC_ASCII_VALUE):
-                    print("\n  Stopped!!")
-                    # Write the present position to the goal position to stop moving
-                    dxl_comm_result, dxl_error = packetHandler.write4ByteTxRx(portHandler, DXL_ID, ADDR_GOAL_POSITION, dxl_present_position)
-                    if dxl_comm_result != COMM_SUCCESS:
-                        print("%s" % packetHandler.getTxRxResult(dxl_comm_result))
-                    elif dxl_error != 0:
-                        print("%s" % packetHandler.getRxPacketError(dxl_error))
-                    break
+#             if kbhit():
+#                 c = getch()
+#                 if c == chr(SPACE_ASCII_VALUE):
+#                     print("\n  Stop & Clear Multi-Turn Information! ")
+#                     # Write the present position to the goal position to stop moving
+#                     dxl_comm_result, dxl_error = packetHandler.write4ByteTxRx(portHandler, DXL_ID, ADDR_GOAL_POSITION, dxl_present_position)
+#                     if dxl_comm_result != COMM_SUCCESS:
+#                         print("%s" % packetHandler.getTxRxResult(dxl_comm_result))
+#                     elif dxl_error != 0:
+#                         print("%s" % packetHandler.getRxPacketError(dxl_error))
+# 
+#                     #time.sleep(0.3)
+# 
+#                     # Clear Multi-Turn Information
+#                     dxl_comm_result, dxl_error = packetHandler.clearMultiTurn(portHandler, DXL_ID)
+#                     if dxl_comm_result != COMM_SUCCESS:
+#                         print("%s" % packetHandler.getTxRxResult(dxl_comm_result))
+#                     elif dxl_error != 0:
+#                         print("%s" % packetHandler.getRxPacketError(dxl_error))
+# 
+#                     # Read present position
+#                     dxl_present_position, dxl_comm_result, dxl_error = packetHandler.read4ByteTxRx(portHandler, DXL_ID, ADDR_PRESENT_POSITION)
+#                     if dxl_comm_result != COMM_SUCCESS:
+#                         print("%s" % packetHandler.getTxRxResult(dxl_comm_result))
+#                     elif dxl_error != 0:
+#                         print("%s" % packetHandler.getRxPacketError(dxl_error))
+# 
+#                     print("Present Position has been reset. : %03d" % dxl_present_position)
+# 
+#                     break
+# 
+#                 elif c == chr(ESC_ASCII_VALUE):
+#                     print("\n  Stopped!!")
+#                     # Write the present position to the goal position to stop moving
+#                     dxl_comm_result, dxl_error = packetHandler.write4ByteTxRx(portHandler, DXL_ID, ADDR_GOAL_POSITION, dxl_present_position)
+#                     if dxl_comm_result != COMM_SUCCESS:
+#                         print("%s" % packetHandler.getTxRxResult(dxl_comm_result))
+#                     elif dxl_error != 0:
+#                         print("%s" % packetHandler.getRxPacketError(dxl_error))
+#                     break
 
             if not abs(goal_position - dxl_present_position) > DXL_MOVING_STATUS_THRESHOLD:
                 break
@@ -289,7 +315,7 @@ try:
         if index == len(dxl_goal_positions)-1:
             # Disable stepper motor
             ####################################################################################### 
-            board.shutdown()
+            #board.shutdown()
             # Disable Dynamixel Torque
             dxl_comm_result, dxl_error = packetHandler.write1ByteTxRx(portHandler, DXL_ID, ADDR_TORQUE_ENABLE, TORQUE_DISABLE)
             if dxl_comm_result != COMM_SUCCESS:
@@ -299,10 +325,10 @@ try:
 
             # Close port
             portHandler.closePort()
-        else:
-            index += 1
+        #else:
+            #index += 1
             #direction = -1*direction
-        time.sleep(1)
+        #time.sleep(.0625)
 
 except KeyboardInterrupt:
     print ('KeyboardInterrupt exception is caught')

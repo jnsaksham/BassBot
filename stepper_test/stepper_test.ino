@@ -20,7 +20,7 @@ void loop () {
 
 
   stepper.setSpeed(2000); // use negative for clockwise, and positive for anticlockwise
-  stepper.runSpeed();
+  // stepper.runSpeed();
   // delay(500);
   // Stop the motor from rotating
   stepper.stop();

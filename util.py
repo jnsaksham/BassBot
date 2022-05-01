@@ -50,6 +50,8 @@ def get_positions(filename, current_position):
     # note_nums = np.array([])
     positions = []
     abs_pos = []
+    step_pos = []
+    durations = []
     # timestamps = np.array([])
     # durations = np.array([])
 
@@ -59,11 +61,11 @@ def get_positions(filename, current_position):
             # note_nums = np.append(note_nums, row[0])
             positions.append(int(float(row[1])+current_position))
             abs_pos.append(int(float(row[1])))
-            # timestamps = np.array(timestamps, row[2])
-            # durations = np.array(durations, row[3])
+            step_pos.append(int(float(row[2])))
+            durations.append(int(float(row[3])))
         else:
             pass
-    return positions, abs_pos
+    return positions, abs_pos, step_pos, durations
 
 
 def block_audio(x, blockSize, hopSize, fs):
