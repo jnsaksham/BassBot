@@ -147,3 +147,151 @@ def twos_complement(pos):
 def negative_goal_val(pos):
     loc = pos - 4294967296 
     return loc
+
+## Code for making notes
+
+# Create fake data
+
+def servo_delay_time(deltaPosition):
+    dur = deltaPosition/5000
+    return dur
+
+def stepper_comm_delay(dur):
+    time.sleep(dur)
+    # print ("Stepper message sent")
+
+def rotate_stepper(dur):
+    time.sleep(dur)
+    # print ('stepper rotated')
+
+def damp(stepper_state, durComm, durRotate):
+    stepper_comm_delay(durComm)
+    rotate_stepper(durRotate)
+    stepper_state = 0
+    return stepper_state
+
+def pluck(stepper_state, durComm, durRotate):
+    stepper_comm_delay(durComm)
+    rotate_stepper(durRotate)
+    stepper_state = 1
+    return stepper_state
+
+def rotate_servo(dur):
+    # Start rotating the servo
+    servo_rotate = 1
+    time.sleep(dur)
+    servo_rotate = 0
+
+## Every note type will have goalPosition, noteDur, damping boolean, durComm: communication delay between py and arduino, durRotate: time to pluck/ damp after stepper starts moving
+
+def normal(deltaPosition, noteDur, durComm, durRotate, t0, damping):
+    # Rotate the Servo to the goal position
+    servoDur = servo_delay_time(deltaPosition)
+    rotate_servo(servoDur)
+    # Pluck the note
+    pluck(stepper_state, durComm, durRotate)
+    # Sleep for noteDur - delay times
+    print ('Normal - Plucked at: ', time.time()-t0)
+    if damping == 1:
+        time.sleep(noteDur-durComm-durRotate)
+        damp(stepper_state, durComm, durRotate)
+    
+def slide(deltaPosition, noteDur, durComm, durRotate, t0, damping):
+    # Pluck the note
+    pluck(stepper_state, durComm, durRotate)
+    print('Slide - Plucked at: ', time.time()-t0)
+    # Move servo position by delta
+    servoDur = servo_delay_time(deltaPosition)
+    rotate_servo(servoDur)
+    # Damp if needed
+    if damping == 1:
+        time.sleep(noteDur-durComm-durRotate)
+        damp(stepper_state, durComm, durRotate)
+
+def slideWithoutPluck(deltaPosition, noteDur, durComm, durRotate, t0, damping):
+    # Move servo position by delta
+    servoDur = servo_delay_time(deltaPosition)
+    rotate_servo(servoDur)
+    # Damp if needed
+    if damping == 1:
+        time.sleep(noteDur-durComm-durRotate)
+        damp(stepper_state, durComm, durRotate)
+
+def normal_wrapper(deltaPosition, noteDur, durComm, durRotate, t0, servoDur, prevDampTime, ibi, damping=True):
+    mechDur = servoDur + durComm + durRotate# 2*durComm because we're communicating with two stepper motors. #Replace 2 with 1 if threading
+    # pluck at 1s
+    sleepTime = ibi-mechDur-prevDampTime
+    time.sleep(sleepTime)
+    # Execute normal pluck note
+    tntmp = time.time()
+    normal(deltaPosition, noteDur, durComm, durRotate, t0, damping)
+    print('sleeptime: ', sleepTime) #'Timestamp for %sth note: ' % i, time.time()-t0
+
+def slide_wrapper(deltaPosition, noteDur, durComm, durRotate, t0, servoDur, prevDampTime, ibi, damping=True):
+    # Add stepper comm time
+    mechDur = servoDur + durComm # 2*durComm because we're communicating with two stepper motors
+    # sleep before sending the next note to be in time
+    sleepTime = ibi-mechDur-prevDampTime
+    time.sleep(sleepTime)
+    tstmp = time.time()
+    # Execute normal pluck note
+    slide(deltaPosition, noteDur, durComm, durRotate, t0, damping)
+    print('sleeptime: ', sleepTime) #'Timestamp for %sth note: ' % i, time.time()-t0, )
+
+def slideWithoutPluck_wrapper(deltaPosition, noteDur, durComm, durRotate, t0, servoDur, prevDampTime, ibi, damping=True):
+    # Add stepper comm time
+    mechDur = servoDur # 2*durComm because we're communicating with two stepper motors
+    # sleep before sending the next note to be in time
+    sleepTime = ibi-mechDur-prevDampTime
+    time.sleep(sleepTime)
+    # tstmp = time.time()
+    # Execute normal pluck note
+    slideWithoutPluck(deltaPosition, noteDur, durComm, durRotate, t0, damping)
+    print('sleeptime: ', sleepTime) #'Timestamp for %sth note: ' % i, time.time()-t0, )
+
+# Leave 1s blank at the beginning for servo to adjust if needed
+def tempoGrid(tempo, songDur):
+    # tempo in bpm, maxDur: Song (or max) duration in seconds
+    return np.arange(1, songDur+1, 60/tempo)
+
+def exec(tempo, songDur, positions, noteDurations, styles, dampNote, durComm, durRotate):
+    ## Play the first note at 1s.
+    # Subtract previous damp time from new note sleep time
+    
+    # get all onset timestamps
+    # grid = tempoGrid(tempo, songDur)
+    ibi = 60/tempo
+    stepper_dur = durComm + durRotate
+
+    # Start global time
+    t0 = time.time()
+    damping = True
+
+    prevDampTime = 0 # durComm+durRotate
+    
+    # Write code for the first note
+    for i in np.arange(len(positions)):
+        print('damp time: ', prevDampTime)
+        deltaPosition = positions[i]
+        print('Delta position: ', deltaPosition)
+        noteDur = noteDurations[i]
+        damping = dampNote[i]
+        if noteDur <= durComm+durRotate:
+            print ('BassBot Error: noteDur less than minimum value. Min value = %s' %stepper_dur, 'for %sth note: '%i)
+            break
+        # if noteDur == 1:
+        #     damping is False
+        # compute delay time due to position
+        servoDur = servo_delay_time(deltaPosition)
+        if styles[i] =='n': 
+            normal_wrapper(deltaPosition, noteDur, durComm, durRotate, t0, servoDur, prevDampTime, ibi, damping)
+        elif styles[i] == 's':
+            slide_wrapper(deltaPosition, noteDur, durComm, durRotate, t0, servoDur, prevDampTime, ibi, damping)
+        elif styles[i] == 'o':
+            slideWithoutPluck_wrapper(deltaPosition, noteDur, durComm, durRotate, t0, servoDur, prevDampTime, ibi, damping=True)
+            
+        if damping == 0:
+            prevDampTime = 0
+        else:
+            prevDampTime = noteDur
+
