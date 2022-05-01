@@ -3,6 +3,7 @@ import numpy as np
 import scipy.fftpack
 import csv
 from scipy.signal import medfilt, butter, lfilter, freqz
+import time
 
 # using functions from previous assignments
 def ToolReadAudio(cAudioFilePath):
@@ -155,34 +156,34 @@ def negative_goal_val(pos):
 # Create fake data
 
 def servo_delay_time(deltaPosition):
+    # Calculate expected delay time by servo rotation
+    # Ideally find out the rpm of the servo and compute rpm*60*deltaPosition/stepsPerRev
     dur = deltaPosition/5000
     return dur
 
 def stepper_comm_delay(dur):
+    # Communication delay caused due to Py and Arduino
     time.sleep(dur)
     # print ("Stepper message sent")
 
 def rotate_stepper(dur):
+    # Time taken for the stepper to pluck/ damp after starting to rotate
     time.sleep(dur)
     # print ('stepper rotated')
 
-def damp(stepper_state, durComm, durRotate):
+def damp(durComm, durRotate):
+    # damping function
     stepper_comm_delay(durComm)
     rotate_stepper(durRotate)
-    stepper_state = 0
-    return stepper_state
 
-def pluck(stepper_state, durComm, durRotate):
+def pluck(durComm, durRotate):
+    # Plucking function
     stepper_comm_delay(durComm)
     rotate_stepper(durRotate)
-    stepper_state = 1
-    return stepper_state
 
 def rotate_servo(dur):
     # Start rotating the servo
-    servo_rotate = 1
     time.sleep(dur)
-    servo_rotate = 0
 
 ## Every note type will have goalPosition, noteDur, damping boolean, durComm: communication delay between py and arduino, durRotate: time to pluck/ damp after stepper starts moving
 
@@ -191,16 +192,16 @@ def normal(deltaPosition, noteDur, durComm, durRotate, t0, damping):
     servoDur = servo_delay_time(deltaPosition)
     rotate_servo(servoDur)
     # Pluck the note
-    pluck(stepper_state, durComm, durRotate)
+    pluck(durComm, durRotate)
     # Sleep for noteDur - delay times
     print ('Normal - Plucked at: ', time.time()-t0)
     if damping == 1:
         time.sleep(noteDur-durComm-durRotate)
-        damp(stepper_state, durComm, durRotate)
+        damp(durComm, durRotate)
     
 def slide(deltaPosition, noteDur, durComm, durRotate, t0, damping):
     # Pluck the note
-    pluck(stepper_state, durComm, durRotate)
+    pluck(durComm, durRotate)
     print('Slide - Plucked at: ', time.time()-t0)
     # Move servo position by delta
     servoDur = servo_delay_time(deltaPosition)
@@ -208,7 +209,7 @@ def slide(deltaPosition, noteDur, durComm, durRotate, t0, damping):
     # Damp if needed
     if damping == 1:
         time.sleep(noteDur-durComm-durRotate)
-        damp(stepper_state, durComm, durRotate)
+        damp(durComm, durRotate)
 
 def slideWithoutPluck(deltaPosition, noteDur, durComm, durRotate, t0, damping):
     # Move servo position by delta
@@ -217,7 +218,7 @@ def slideWithoutPluck(deltaPosition, noteDur, durComm, durRotate, t0, damping):
     # Damp if needed
     if damping == 1:
         time.sleep(noteDur-durComm-durRotate)
-        damp(stepper_state, durComm, durRotate)
+        damp(durComm, durRotate)
 
 def normal_wrapper(deltaPosition, noteDur, durComm, durRotate, t0, servoDur, prevDampTime, ibi, damping=True):
     mechDur = servoDur + durComm + durRotate# 2*durComm because we're communicating with two stepper motors. #Replace 2 with 1 if threading
@@ -256,7 +257,7 @@ def tempoGrid(tempo, songDur):
     # tempo in bpm, maxDur: Song (or max) duration in seconds
     return np.arange(1, songDur+1, 60/tempo)
 
-def exec(tempo, songDur, positions, noteDurations, styles, dampNote, durComm, durRotate):
+def playSong(tempo, songDur, positions, noteDurations, styles, dampNote, durComm, durRotate):
     ## Play the first note at 1s.
     # Subtract previous damp time from new note sleep time
     
