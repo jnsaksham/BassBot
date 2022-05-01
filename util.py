@@ -201,6 +201,7 @@ def normal(deltaPosition, noteDur, durComm, durRotate, t0, damping):
     
 def slide(deltaPosition, noteDur, durComm, durRotate, t0, damping):
     # Pluck the note
+    #print ('Slide function first timestamp ', time.time()-t0)
     pluck(durComm, durRotate)
     print('Slide - Plucked at: ', time.time()-t0)
     # Move servo position by delta
@@ -228,18 +229,20 @@ def normal_wrapper(deltaPosition, noteDur, durComm, durRotate, t0, servoDur, pre
     # Execute normal pluck note
     tntmp = time.time()
     normal(deltaPosition, noteDur, durComm, durRotate, t0, damping)
-    print('sleeptime: ', sleepTime) #'Timestamp for %sth note: ' % i, time.time()-t0
+    #print('sleeptime: ', sleepTime) #'Timestamp for %sth note: ' % i, time.time()-t0
 
 def slide_wrapper(deltaPosition, noteDur, durComm, durRotate, t0, servoDur, prevDampTime, ibi, damping=True):
     # Add stepper comm time
-    mechDur = servoDur + durComm # 2*durComm because we're communicating with two stepper motors
+    mechDur = durComm + durRotate # 2*durComm because we're communicating with two stepper motors
     # sleep before sending the next note to be in time
     sleepTime = ibi-mechDur-prevDampTime
+    # print(sleepTime)
     time.sleep(sleepTime)
     tstmp = time.time()
+    #print ('Abs Slide pluck_function start time: ', tstmp-t0)
     # Execute normal pluck note
     slide(deltaPosition, noteDur, durComm, durRotate, t0, damping)
-    print('sleeptime: ', sleepTime) #'Timestamp for %sth note: ' % i, time.time()-t0, )
+    #print('sleeptime: ', sleepTime) #'Timestamp for %sth note: ' % i, time.time()-t0, )
 
 def slideWithoutPluck_wrapper(deltaPosition, noteDur, durComm, durRotate, t0, servoDur, prevDampTime, ibi, damping=True):
     # Add stepper comm time
@@ -279,6 +282,7 @@ def playSong(tempo, songDur, positions, noteDurations, styles, dampNote, durComm
         print('Delta position: ', deltaPosition)
         noteDur = noteDurations[i]
         damping = dampNote[i]
+        style = styles[i]
         if noteDur <= durComm+durRotate:
             print ('BassBot Error: noteDur less than minimum value. Min value = %s' %stepper_dur, 'for %sth note: '%i)
             break
@@ -286,15 +290,20 @@ def playSong(tempo, songDur, positions, noteDurations, styles, dampNote, durComm
         #     damping is False
         # compute delay time due to position
         servoDur = servo_delay_time(deltaPosition)
-        if styles[i] =='n': 
+        if style =='n': 
             normal_wrapper(deltaPosition, noteDur, durComm, durRotate, t0, servoDur, prevDampTime, ibi, damping)
-        elif styles[i] == 's':
+        elif style == 's':
             slide_wrapper(deltaPosition, noteDur, durComm, durRotate, t0, servoDur, prevDampTime, ibi, damping)
-        elif styles[i] == 'o':
+        elif style == 'o':
             slideWithoutPluck_wrapper(deltaPosition, noteDur, durComm, durRotate, t0, servoDur, prevDampTime, ibi, damping=True)
             
         if damping == 0:
             prevDampTime = 0
+            if style == 's':
+                prevDampTime += servoDur
         else:
             prevDampTime = noteDur
+            if style == 's':
+                prevDampTime += servoDur
+        print('prevDampTime', prevDampTime)
 
